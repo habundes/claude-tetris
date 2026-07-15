@@ -30,6 +30,11 @@
           <canvas id="next-canvas" width="120" height="120"></canvas>
         </div>
 
+        <div class="panel-section" id="scores-panel-section">
+          <span class="label">RECORDS</span>
+          <div id="scores-panel"></div>
+        </div>
+
         <div class="panel-section controls">
           <span class="label">CONTROLS</span>
           <ul>
@@ -47,6 +52,13 @@
       <div class="overlay-box">
         <p id="overlay-title">GAME OVER</p>
         <p id="overlay-score"></p>
+        <div id="name-form" class="hidden">
+          <p class="score-prompt">¡Nuevo record! Ingresa tu nombre:</p>
+          <input id="player-name" type="text" maxlength="10" placeholder="Nombre" />
+          <button id="submit-name-btn">Guardar</button>
+        </div>
+        <div id="overlay-scores"></div>
+        <button id="reset-scores-btn">Borrar records</button>
         <button id="restart-btn">Reiniciar</button>
       </div>
     </div>
