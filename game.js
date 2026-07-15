@@ -13,6 +13,7 @@ const COLORS = [
   '#e57373', // Z - red
   '#7986cb', // J - indigo
   '#ffb74d', // L - orange
+  '#78909c', // tuerca - metallic grey
 ];
 
 const PIECES = [
@@ -24,6 +25,7 @@ const PIECES = [
   [[5,5,0],[0,5,5],[0,0,0]],                  // Z
   [[6,0,0],[6,6,6],[0,0,0]],                  // J
   [[0,0,7],[7,7,7],[0,0,0]],                  // L
+  [[8,8,8],[8,0,8],[8,8,8]],                  // tuerca
 ];
 
 const LINE_SCORES = [0, 100, 300, 500, 800];
@@ -40,14 +42,14 @@ const overlayTitle = document.getElementById('overlay-title');
 const overlayScore = document.getElementById('overlay-score');
 const restartBtn = document.getElementById('restart-btn');
 
-let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
+let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId, holes;
 
 function createBoard() {
   return Array.from({ length: ROWS }, () => new Array(COLS).fill(0));
 }
 
 function randomPiece() {
-  const type = Math.floor(Math.random() * 7) + 1;
+  const type = Math.floor(Math.random() * 8) + 1;
   const shape = PIECES[type].map(row => [...row]);
   return { type, shape, x: Math.floor(COLS / 2) - Math.floor(shape[0].length / 2), y: 0 };
 }
@@ -91,6 +93,8 @@ function merge() {
     for (let c = 0; c < current.shape[r].length; c++)
       if (current.shape[r][c])
         board[current.y + r][current.x + c] = current.shape[r][c];
+  if (current.type === 8)
+    holes.push({ x: current.x + 1, y: current.y + 1 });
 }
 
 function clearLines() {
@@ -99,6 +103,7 @@ function clearLines() {
     if (board[r].every(v => v !== 0)) {
       board.splice(r, 1);
       board.unshift(new Array(COLS).fill(0));
+      holes.forEach(h => { if (h.y < r) h.y++; });
       cleared++;
       r++;
     }
@@ -168,6 +173,16 @@ function drawBlock(context, x, y, colorIndex, size, alpha) {
   context.globalAlpha = 1;
 }
 
+function drawHole(context, bx, by, size, alpha) {
+  context.globalAlpha = alpha ?? 1;
+  context.strokeStyle = '#78909c';
+  context.lineWidth = 2;
+  context.beginPath();
+  context.arc((bx + 0.5) * size, (by + 0.5) * size, size * 0.28, 0, Math.PI * 2);
+  context.stroke();
+  context.globalAlpha = 1;
+}
+
 function drawGrid() {
   ctx.strokeStyle = '#22222e';
   ctx.lineWidth = 0.5;
@@ -205,6 +220,12 @@ function draw() {
   for (let r = 0; r < current.shape.length; r++)
     for (let c = 0; c < current.shape[r].length; c++)
       drawBlock(ctx, current.x + c, current.y + r, current.shape[r][c], BLOCK);
+
+  if (current.type === 8) {
+    drawHole(ctx, current.x + 1, gy + 1, BLOCK, 0.2);
+    drawHole(ctx, current.x + 1, current.y + 1, BLOCK);
+  }
+  for (const h of holes) drawHole(ctx, h.x, h.y, BLOCK);
 }
 
 function drawNext() {
@@ -216,6 +237,7 @@ function drawNext() {
   for (let r = 0; r < shape.length; r++)
     for (let c = 0; c < shape[r].length; c++)
       drawBlock(nextCtx, offX + c, offY + r, shape[r][c], NB);
+  if (next.type === 8) drawHole(nextCtx, offX + 1, offY + 1, NB);
 }
 
 function endGame() {
@@ -252,12 +274,14 @@ function loop(ts) {
       lockPiece();
     }
   }
+  if (gameOver) return;
   draw();
   animId = requestAnimationFrame(loop);
 }
 
 function init() {
   board = createBoard();
+  holes = [];
   score = 0;
   lines = 0;
   level = 1;
