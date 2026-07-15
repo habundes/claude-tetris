@@ -4,17 +4,88 @@ const COLS = 10;
 const ROWS = 20;
 const BLOCK = 30;
 
-const COLORS = [
-  null,
-  '#4dd0e1', // I - cyan
-  '#ffd54f', // O - yellow
-  '#ba68c8', // T - purple
-  '#81c784', // S - green
-  '#e57373', // Z - red
-  '#7986cb', // J - indigo
-  '#ffb74d', // L - orange
-  '#78909c', // tuerca - metallic grey
-];
+const THEMES = {
+  retro: {
+    id: 'retro',
+    colors: [null,'#4dd0e1','#ffd54f','#ba68c8','#81c784','#e57373','#7986cb','#ffb74d','#78909c'],
+    gridColor: '#22222e',
+    bgBoard: '#1a1a25',
+    bgBody: '#0f0f17',
+    accent: '#7aa2f7',
+    drawBlock(ctx, x, y, colorIndex, size, alpha) {
+      if (!colorIndex) return;
+      ctx.globalAlpha = alpha ?? 1;
+      ctx.fillStyle = this.colors[colorIndex];
+      ctx.fillRect(x * size + 1, y * size + 1, size - 2, size - 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.12)';
+      ctx.fillRect(x * size + 1, y * size + 1, size - 2, 4);
+      ctx.globalAlpha = 1;
+    }
+  },
+  neon: {
+    id: 'neon',
+    colors: [null,'#00fff5','#ffe600','#dd00ff','#00ff88','#ff2255','#4466ff','#ff8800','#aaaaaa'],
+    gridColor: '#111122',
+    bgBoard: '#050510',
+    bgBody: '#000008',
+    accent: '#00fff5',
+    drawBlock(ctx, x, y, colorIndex, size, alpha) {
+      if (!colorIndex) return;
+      const color = this.colors[colorIndex];
+      ctx.globalAlpha = alpha ?? 1;
+      ctx.shadowBlur = 12;
+      ctx.shadowColor = color;
+      ctx.fillStyle = color;
+      ctx.fillRect(x * size + 2, y * size + 2, size - 4, size - 4);
+      ctx.shadowBlur = 0;
+      ctx.shadowColor = 'transparent';
+      ctx.globalAlpha = 1;
+    }
+  },
+  pastel: {
+    id: 'pastel',
+    colors: [null,'#a8d8ea','#ffd3a5','#d4a8d8','#b8e0b8','#f5b8b8','#b8bce8','#f5d0a8','#c8d0d8'],
+    gridColor: '#2a2a3a',
+    bgBoard: '#22222f',
+    bgBody: '#18182a',
+    accent: '#a8d8ea',
+    drawBlock(ctx, x, y, colorIndex, size, alpha) {
+      if (!colorIndex) return;
+      ctx.globalAlpha = alpha ?? 1;
+      ctx.fillStyle = this.colors[colorIndex];
+      ctx.fillRect(x * size + 1, y * size + 1, size - 2, size - 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.20)';
+      ctx.fillRect(x * size + 1, y * size + 1, size - 2, 5);
+      ctx.globalAlpha = 1;
+    }
+  },
+  pixel: {
+    id: 'pixel',
+    colors: [null,'#4dd0e1','#ffd54f','#ba68c8','#81c784','#e57373','#7986cb','#ffb74d','#78909c'],
+    gridColor: '#1a1a28',
+    bgBoard: '#12121e',
+    bgBody: '#0a0a14',
+    accent: '#7aa2f7',
+    drawBlock(ctx, x, y, colorIndex, size, alpha) {
+      if (!colorIndex) return;
+      const color = this.colors[colorIndex];
+      ctx.globalAlpha = alpha ?? 1;
+      ctx.fillStyle = color;
+      ctx.fillRect(x * size + 1, y * size + 1, size - 2, size - 2);
+      // pixel cross pattern overlay
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      const px = x * size, py = y * size;
+      // horizontal stripe
+      ctx.fillRect(px + 1, py + size / 2 - 1, size - 2, 2);
+      // vertical stripe
+      ctx.fillRect(px + size / 2 - 1, py + 1, 2, size - 2);
+      ctx.globalAlpha = 1;
+    }
+  }
+};
+
+let activeTheme = THEMES.retro;
+const THEME_KEY = 'tetris_theme';
 
 const PIECES = [
   null,
@@ -169,15 +240,7 @@ function updateHUD() {
 }
 
 function drawBlock(context, x, y, colorIndex, size, alpha) {
-  if (!colorIndex) return;
-  const color = COLORS[colorIndex];
-  context.globalAlpha = alpha ?? 1;
-  context.fillStyle = color;
-  context.fillRect(x * size + 1, y * size + 1, size - 2, size - 2);
-  // highlight
-  context.fillStyle = 'rgba(255,255,255,0.12)';
-  context.fillRect(x * size + 1, y * size + 1, size - 2, 4);
-  context.globalAlpha = 1;
+  activeTheme.drawBlock(context, x, y, colorIndex, size, alpha);
 }
 
 function drawHole(context, bx, by, size, alpha) {
@@ -190,8 +253,24 @@ function drawHole(context, bx, by, size, alpha) {
   context.globalAlpha = 1;
 }
 
+function applyTheme(name) {
+  const theme = THEMES[name];
+  activeTheme = theme || THEMES.retro;
+  const resolvedName = theme ? name : 'retro';
+  const root = document.documentElement.style;
+  root.setProperty('--bg-body', activeTheme.bgBody);
+  root.setProperty('--bg-board', activeTheme.bgBoard);
+  root.setProperty('--accent', activeTheme.accent);
+  canvas.style.background = activeTheme.bgBoard;
+  nextCanvas.style.background = activeTheme.bgBoard;
+  document.body.style.background = activeTheme.bgBody;
+  localStorage.setItem(THEME_KEY, resolvedName);
+  const sel = document.getElementById('theme-select');
+  if (sel) sel.value = resolvedName;
+}
+
 function drawGrid() {
-  ctx.strokeStyle = '#22222e';
+  ctx.strokeStyle = activeTheme.gridColor;
   ctx.lineWidth = 0.5;
   for (let c = 1; c < COLS; c++) {
     ctx.beginPath();
@@ -352,4 +431,11 @@ startLevelSelect.addEventListener('change', () => {
   startLevel = parseInt(startLevelSelect.value, 10);
 });
 
+document.getElementById('theme-select').addEventListener('change', e => {
+  applyTheme(e.target.value);
+  if (!gameOver) draw();
+});
+
+const savedTheme = localStorage.getItem(THEME_KEY) || 'retro';
+applyTheme(savedTheme);
 init();

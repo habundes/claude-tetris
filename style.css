@@ -1,3 +1,9 @@
+:root {
+  --bg-body: #0f0f17;
+  --bg-board: #1a1a25;
+  --accent: #7aa2f7;
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -95,6 +101,18 @@ kbd {
   font-family: inherit;
   color: #aaa;
 }
+
+#theme-select {
+  background: #22223a;
+  border: 1px solid #3a3a5a;
+  border-radius: 4px;
+  color: #e0e0e0;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  width: 100%;
+}
+#theme-select:focus { outline: none; border-color: var(--accent); }
 
 /* ---- Overlay ---- */
 .overlay {
