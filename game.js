@@ -118,9 +118,47 @@ const pauseRestartBtn = document.getElementById('pause-restart-btn');
 const controlsBtn = document.getElementById('controls-btn');
 const pauseControls = document.getElementById('pause-controls');
 const startLevelSelect = document.getElementById('start-level');
+const nameForm = document.getElementById('name-form');
+const playerNameInput = document.getElementById('player-name');
+const submitNameBtn = document.getElementById('submit-name-btn');
+const resetScoresBtn = document.getElementById('reset-scores-btn');
+const scoresPanelEl = document.getElementById('scores-panel');
+const overlayScoresEl = document.getElementById('overlay-scores');
+
+const SCORES_KEY = 'tetris_scores';
+function loadScores() {
+  try { return JSON.parse(localStorage.getItem(SCORES_KEY)) || []; } catch { return []; }
+}
+function saveScores(scores) {
+  localStorage.setItem(SCORES_KEY, JSON.stringify(scores));
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function renderScores(container, highlight) {
+  const scores = loadScores();
+  if (!scores.length) { container.textContent = 'Sin records'; return; }
+  container.innerHTML = scores.map((s, i) =>
+    `<div class="score-row${s.score === highlight ? ' score-highlight' : ''}">
+      <span class="score-rank">#${i+1}</span>
+      <span class="score-name">${escapeHtml(s.name)}</span>
+      <span class="score-val">${s.score.toLocaleString()}</span>
+      <span class="score-meta">${s.lines}L C${s.combo}</span>
+    </div>`
+  ).join('');
+}
+
+function resetScores() {
+  localStorage.removeItem(SCORES_KEY);
+  renderScores(scoresPanelEl, null);
+  renderScores(overlayScoresEl, null);
+}
 
 let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId, holes;
 let startLevel = 1;
+let combo = 0, maxCombo = 0;
 
 function createBoard() {
   return Array.from({ length: ROWS }, () => new Array(COLS).fill(0));
@@ -187,11 +225,15 @@ function clearLines() {
     }
   }
   if (cleared) {
+    combo++;
+    if (combo > maxCombo) maxCombo = combo;
     lines += cleared;
     score += (LINE_SCORES[cleared] || 0) * level;
     level = Math.max(startLevel, Math.floor(lines / 10) + 1);
     dropInterval = Math.max(100, 1000 - (level - 1) * 90);
     updateHUD();
+  } else {
+    combo = 0;
   }
 }
 
@@ -334,6 +376,17 @@ function endGame() {
   overlayScore.textContent = `Puntuación: ${score.toLocaleString()}`;
   pauseMenu.classList.add('hidden');
   restartBtn.classList.remove('hidden');
+  const scores = loadScores();
+  if (scores.length < 5 || score >= (scores[scores.length - 1]?.score ?? -1)) {
+    nameForm.classList.remove('hidden');
+    playerNameInput.value = '';
+    playerNameInput.focus();
+    overlayScoresEl.innerHTML = '';
+  } else {
+    nameForm.classList.add('hidden');
+    renderScores(overlayScoresEl, null);
+  }
+  renderScores(scoresPanelEl, null);
   overlay.classList.remove('hidden');
 }
 
@@ -374,6 +427,20 @@ function loop(ts) {
   animId = requestAnimationFrame(loop);
 }
 
+function submitName() {
+  if (nameForm.classList.contains('hidden')) return;
+  const name = playerNameInput.value.trim() || 'AAA';
+  const entry = { name, score, lines, combo: maxCombo };
+  const scores = loadScores();
+  scores.push(entry);
+  scores.sort((a, b) => b.score - a.score);
+  scores.splice(5);
+  saveScores(scores);
+  nameForm.classList.add('hidden');
+  renderScores(overlayScoresEl, score);
+  renderScores(scoresPanelEl, null);
+}
+
 function init() {
   board = createBoard();
   holes = [];
@@ -385,12 +452,15 @@ function init() {
   dropInterval = Math.max(100, 1000 - (startLevel - 1) * 90);
   dropAccum = 0;
   lastTime = performance.now();
+  combo = 0;
+  maxCombo = 0;
   next = randomPiece();
   spawn();
   updateHUD();
   pauseControls.classList.add('hidden');
   pauseMenu.classList.add('hidden');
   restartBtn.classList.remove('hidden');
+  renderScores(scoresPanelEl, null);
   overlay.classList.add('hidden');
   cancelAnimationFrame(animId);
   animId = requestAnimationFrame(loop);
@@ -430,6 +500,9 @@ controlsBtn.addEventListener('click', () => {
 startLevelSelect.addEventListener('change', () => {
   startLevel = parseInt(startLevelSelect.value, 10);
 });
+submitNameBtn.addEventListener('click', submitName);
+playerNameInput.addEventListener('keydown', e => { if (e.key === 'Enter') submitName(); });
+resetScoresBtn.addEventListener('click', resetScores);
 
 document.getElementById('theme-select').addEventListener('change', e => {
   applyTheme(e.target.value);
